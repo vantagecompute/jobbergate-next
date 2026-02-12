@@ -3,7 +3,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from jobbergate_agent_fastapi.main import app, session_manager
+from jobbergate_agent_fastapi.main import app, session_manager, set_sdk
 
 
 @pytest.fixture
@@ -16,8 +16,11 @@ def client():
 def clear_sessions():
     """Clear all sessions before each test."""
     session_manager.clear_all_sessions()
+    # Reset SDK to None for each test
+    set_sdk(None)
     yield
     session_manager.clear_all_sessions()
+    set_sdk(None)
 
 
 @pytest.fixture

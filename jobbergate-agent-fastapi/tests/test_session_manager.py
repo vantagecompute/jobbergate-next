@@ -1,6 +1,5 @@
 """Tests for session management."""
 
-
 from jobbergate_agent_fastapi.session_manager import SessionManager
 from tests.sample_apps import (
     ConditionalApplication,

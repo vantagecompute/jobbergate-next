@@ -1,12 +1,14 @@
 """Main FastAPI application for jobbergate agent."""
 
 import importlib.util
-import pathlib
 import sys
+import tempfile
+from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from jobbergate_core.sdk import Apps
 
 from jobbergate_agent_fastapi import __version__
 from jobbergate_agent_fastapi.models import (
@@ -45,45 +47,72 @@ app.add_middleware(
 # Global session manager
 session_manager = SessionManager()
 
-# In-memory application storage (in production, this would be a database or file system)
-# This is a simple implementation for demonstration
+# In-memory application storage
 _application_cache = {}
 
+# Global SDK instance (can be configured via dependency injection in production)
+_sdk_instance: Optional[Apps] = None
 
-def load_application_from_path(application_path: str):
+
+def get_sdk() -> Apps:
     """
-    Load a JobbergateApplication from a file path.
-
-    Args:
-        application_path: Path to the jobbergate.py file or directory containing it
+    Get or create the SDK instance.
 
     Returns:
-        Application class or instance
+        Apps SDK instance for API communication
     """
-    app_path = pathlib.Path(application_path)
+    global _sdk_instance
+    if _sdk_instance is None:
+        _sdk_instance = Apps.build()
+    return _sdk_instance
 
-    if app_path.is_dir():
-        app_file = app_path / "jobbergate.py"
-    else:
-        app_file = app_path
 
-    if not app_file.exists():
-        raise ValueError(f"Application file not found: {app_file}")
+def set_sdk(sdk: Apps) -> None:
+    """
+    Set the SDK instance (useful for testing).
 
-    # Load the module dynamically
-    spec = importlib.util.spec_from_file_location("jobbergate_app", app_file)
-    if spec is None or spec.loader is None:
-        raise ValueError(f"Could not load application from {app_file}")
+    Args:
+        sdk: Apps SDK instance to use
+    """
+    global _sdk_instance
+    _sdk_instance = sdk
 
-    module = importlib.util.module_from_spec(spec)
-    sys.modules["jobbergate_app"] = module
-    spec.loader.exec_module(module)
 
-    # Get the JobbergateApplication class
-    if not hasattr(module, "JobbergateApplication"):
-        raise ValueError(f"No JobbergateApplication class found in {app_file}")
+def get_jobbergate_application(app_id: str | int):
+    """
+    Fetch and load a JobbergateApplication from the API.
 
-    return module.JobbergateApplication
+    Args:
+        app_id: Application ID or identifier
+
+    Returns:
+        Application class from the downloaded workflow file
+    """
+    sdk = get_sdk()
+
+    # Create a temporary directory to download the workflow file
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp_path = Path(temp_dir)
+
+        # Download the workflow file (jobbergate.py) from the API
+        workflow_file_path = sdk.job_templates.files.workflow().download(  # type: ignore[operator]
+            id_or_identifier=app_id, directory=temp_path
+        )
+
+        # Load the module dynamically
+        spec = importlib.util.spec_from_file_location("jobbergate_app", workflow_file_path)
+        if spec is None or spec.loader is None:
+            raise ValueError(f"Could not load application from {workflow_file_path}")
+
+        module = importlib.util.module_from_spec(spec)
+        sys.modules["jobbergate_app"] = module
+        spec.loader.exec_module(module)
+
+        # Get the JobbergateApplication class
+        if not hasattr(module, "JobbergateApplication"):
+            raise ValueError(f"No JobbergateApplication class found in {workflow_file_path}")
+
+        return module.JobbergateApplication
 
 
 @app.get("/health", status_code=status.HTTP_204_NO_CONTENT)
@@ -98,28 +127,21 @@ async def health_check():
     status_code=status.HTTP_201_CREATED,
     responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
 )
-async def start_session(app_id: str, application_path: Optional[str] = None):
+async def start_session(app_id: str):
     """
     Start a new question/answer session for an application.
 
     Args:
-        app_id: Application identifier
-        application_path: Optional path to the application (for demo/testing)
+        app_id: Application identifier or ID from the API
 
     Returns:
         Session information with first question
     """
-    # In a real implementation, we would load the application from storage
-    # For now, we'll require an application_path parameter or use a cached version
+    # Check if application is already cached
     if app_id not in _application_cache:
-        if not application_path:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Application {app_id} not found. Please provide application_path for testing.",
-            )
-
         try:
-            app_class = load_application_from_path(application_path)
+            # Fetch application from API using SDK
+            app_class = get_jobbergate_application(app_id)
             # Create instance with minimal config
             app_instance = app_class({"jobbergate_config": {}, "application_config": {}})
             _application_cache[app_id] = app_instance
@@ -127,7 +149,8 @@ async def start_session(app_id: str, application_path: Optional[str] = None):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
         except Exception as e:
             raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error loading application: {e}"
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Error loading application from API: {e}",
             )
     else:
         app_instance = _application_cache[app_id]
@@ -297,7 +320,7 @@ async def cancel_session(app_id: str, session_id: str):
 
 def run():
     """Entry point for running the service."""
-    import uvicorn
+    import uvicorn  # type: ignore[import-not-found]
 
     uvicorn.run(app, host="0.0.0.0", port=8000)
 
