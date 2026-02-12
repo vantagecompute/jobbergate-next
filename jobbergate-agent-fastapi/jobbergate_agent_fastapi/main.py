@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, status
+from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from jobbergate_core.sdk import Apps
 
@@ -18,7 +18,9 @@ from jobbergate_agent_fastapi.models import (
     SessionStartResponse,
     SubmitResponse,
 )
+from jobbergate_agent_fastapi.permissions import Permissions
 from jobbergate_agent_fastapi.question_handler import QuestionHandler
+from jobbergate_agent_fastapi.security import IdentityPayload, lockdown_with_identity
 from jobbergate_agent_fastapi.session_manager import SessionManager
 
 app = FastAPI(
@@ -127,12 +129,18 @@ async def health_check():
     status_code=status.HTTP_201_CREATED,
     responses={404: {"model": ErrorResponse}, 500: {"model": ErrorResponse}},
 )
-async def start_session(app_id: str):
+async def start_session(
+    app_id: str,
+    identity_payload: IdentityPayload = Depends(
+        lockdown_with_identity(Permissions.ADMIN, Permissions.AGENT_API_APPLICATIONS_CREATE, ensure_email=True)
+    ),
+):
     """
     Start a new question/answer session for an application.
 
     Args:
         app_id: Application identifier or ID from the API
+        identity_payload: Authenticated user identity from token
 
     Returns:
         Session information with first question
@@ -141,6 +149,7 @@ async def start_session(app_id: str):
     if app_id not in _application_cache:
         try:
             # Fetch application from API using SDK
+            # The SDK will use the authenticated user's context via the token
             app_class = get_jobbergate_application(app_id)
             # Create instance with minimal config
             app_instance = app_class({"jobbergate_config": {}, "application_config": {}})
@@ -171,6 +180,8 @@ async def start_session(app_id: str):
             question=question_response,
             completed=session.completed,
         )
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error starting session: {e}")
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error starting session: {e}")
 

@@ -2,6 +2,7 @@
 
 from unittest.mock import patch
 
+from jobbergate_agent_fastapi.permissions import Permissions
 from tests.sample_apps import MultiWorkflowApplication
 
 
@@ -11,14 +12,23 @@ def test_health_check(client):
     assert response.status_code == 204
 
 
-def test_start_session_with_mocked_sdk(client, sample_application_class):
-    """Test starting a session with mocked SDK."""
+def test_start_session_without_auth(client):
+    """Test that starting a session without authentication fails."""
+    response = client.post("/applications/test_app/sessions")
+    assert response.status_code == 401
+
+
+def test_start_session_with_mocked_sdk(client, sample_application_class, inject_security_header):
+    """Test starting a session with mocked SDK and proper authentication."""
+    # Inject authentication
+    inject_security_header("user@example.com", Permissions.AGENT_API_APPLICATIONS_CREATE)
+    
     # Mock the get_jobbergate_application function
     with patch("jobbergate_agent_fastapi.main.get_jobbergate_application") as mock_get_app:
         mock_get_app.return_value = sample_application_class
-
+        
         response = client.post("/applications/test_app/sessions")
-
+        
         assert response.status_code == 201
         data = response.json()
         assert "session_id" in data
@@ -28,8 +38,11 @@ def test_start_session_with_mocked_sdk(client, sample_application_class):
         assert data["completed"] is False
 
 
-def test_start_session_api_error(client):
+def test_start_session_api_error(client, inject_security_header):
     """Test starting a session when API returns error."""
+    # Inject authentication
+    inject_security_header("user@example.com", Permissions.AGENT_API_APPLICATIONS_CREATE)
+    
     # Mock to raise an exception
     with patch("jobbergate_agent_fastapi.main.get_jobbergate_application") as mock_get_app:
         mock_get_app.side_effect = ValueError("Application not found")
@@ -38,12 +51,15 @@ def test_start_session_api_error(client):
         assert response.status_code == 404
 
 
-def test_get_current_question(client, sample_application_class):
+def test_get_current_question(client, sample_application_class, inject_security_header):
     """Test getting the current question."""
+    # Inject authentication
+    inject_security_header("user@example.com", Permissions.AGENT_API_APPLICATIONS_CREATE)
+    
     # Mock SDK and start a session
     with patch("jobbergate_agent_fastapi.main.get_jobbergate_application") as mock_get_app:
         mock_get_app.return_value = sample_application_class
-
+        
         response = client.post("/applications/test_app/sessions")
         session_id = response.json()["session_id"]
 
@@ -63,12 +79,15 @@ def test_get_current_question_invalid_session(client):
     assert response.status_code == 404
 
 
-def test_submit_answer(client, sample_application_class):
+def test_submit_answer(client, sample_application_class, inject_security_header):
     """Test submitting an answer."""
+    # Inject authentication
+    inject_security_header("user@example.com", Permissions.AGENT_API_APPLICATIONS_CREATE)
+    
     # Mock SDK and start a session
     with patch("jobbergate_agent_fastapi.main.get_jobbergate_application") as mock_get_app:
         mock_get_app.return_value = sample_application_class
-
+        
         response = client.post("/applications/test_app/sessions")
         session_id = response.json()["session_id"]
 
@@ -94,12 +113,15 @@ def test_submit_answer_invalid_session(client):
     assert response.status_code == 404
 
 
-def test_submit_answer_wrong_app(client, sample_application_class):
+def test_submit_answer_wrong_app(client, sample_application_class, inject_security_header):
     """Test submitting answer with wrong application ID."""
+    # Inject authentication
+    inject_security_header("user@example.com", Permissions.AGENT_API_APPLICATIONS_CREATE)
+    
     # Mock SDK and start a session
     with patch("jobbergate_agent_fastapi.main.get_jobbergate_application") as mock_get_app:
         mock_get_app.return_value = sample_application_class
-
+        
         response = client.post("/applications/test_app/sessions")
         session_id = response.json()["session_id"]
 
@@ -111,12 +133,15 @@ def test_submit_answer_wrong_app(client, sample_application_class):
         assert response.status_code == 404
 
 
-def test_complete_workflow(client, sample_application_class):
+def test_complete_workflow(client, sample_application_class, inject_security_header):
     """Test completing an entire workflow."""
+    # Inject authentication
+    inject_security_header("user@example.com", Permissions.AGENT_API_APPLICATIONS_CREATE)
+    
     # Mock SDK and start a session
     with patch("jobbergate_agent_fastapi.main.get_jobbergate_application") as mock_get_app:
         mock_get_app.return_value = sample_application_class
-
+        
         response = client.post("/applications/test_app/sessions")
         session_id = response.json()["session_id"]
 
@@ -139,12 +164,15 @@ def test_complete_workflow(client, sample_application_class):
         assert data["question"] is None
 
 
-def test_submit_application(client, sample_application_class):
+def test_submit_application(client, sample_application_class, inject_security_header):
     """Test submitting an application after all questions are answered."""
+    # Inject authentication
+    inject_security_header("user@example.com", Permissions.AGENT_API_APPLICATIONS_CREATE)
+    
     # Mock SDK and start a session
     with patch("jobbergate_agent_fastapi.main.get_jobbergate_application") as mock_get_app:
         mock_get_app.return_value = sample_application_class
-
+        
         response = client.post("/applications/test_app/sessions")
         session_id = response.json()["session_id"]
 
@@ -161,12 +189,15 @@ def test_submit_application(client, sample_application_class):
         assert "submitted successfully" in data["message"].lower()
 
 
-def test_submit_application_incomplete(client, sample_application_class):
+def test_submit_application_incomplete(client, sample_application_class, inject_security_header):
     """Test submitting application before all questions are answered."""
+    # Inject authentication
+    inject_security_header("user@example.com", Permissions.AGENT_API_APPLICATIONS_CREATE)
+    
     # Mock SDK and start a session
     with patch("jobbergate_agent_fastapi.main.get_jobbergate_application") as mock_get_app:
         mock_get_app.return_value = sample_application_class
-
+        
         response = client.post("/applications/test_app/sessions")
         session_id = response.json()["session_id"]
 
@@ -177,12 +208,15 @@ def test_submit_application_incomplete(client, sample_application_class):
         assert "not all questions" in response.json()["detail"].lower()
 
 
-def test_cancel_session(client, sample_application_class):
+def test_cancel_session(client, sample_application_class, inject_security_header):
     """Test canceling a session."""
+    # Inject authentication
+    inject_security_header("user@example.com", Permissions.AGENT_API_APPLICATIONS_CREATE)
+    
     # Mock SDK and start a session
     with patch("jobbergate_agent_fastapi.main.get_jobbergate_application") as mock_get_app:
         mock_get_app.return_value = sample_application_class
-
+        
         response = client.post("/applications/test_app/sessions")
         session_id = response.json()["session_id"]
 
@@ -195,8 +229,11 @@ def test_cancel_session(client, sample_application_class):
         assert response.status_code == 404
 
 
-def test_multi_workflow_application(client):
+def test_multi_workflow_application(client, inject_security_header):
     """Test application with multiple workflows."""
+    # Inject authentication
+    inject_security_header("user@example.com", Permissions.AGENT_API_APPLICATIONS_CREATE)
+    
     # Mock SDK
     with patch("jobbergate_agent_fastapi.main.get_jobbergate_application") as mock_get_app:
         mock_get_app.return_value = MultiWorkflowApplication
