@@ -3,7 +3,7 @@
 import pytest
 
 from jobbergate_agent_fastapi.main import _application_cache
-from jobbergate_agent_fastapi.tests.sample_apps import MultiWorkflowApplication, SimpleApplication
+from tests.sample_apps import MultiWorkflowApplication, SimpleApplication
 
 
 def test_health_check(client):

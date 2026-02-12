@@ -22,32 +22,28 @@ class QuestionSession:
 
     def get_current_question(self) -> Optional[inquirer.questions.Question]:
         """Get the current question in the workflow."""
-        # Check if we need to move to the next workflow
-        if self.current_question_index >= len(self.question_list):
-            # Check if there's a next workflow
-            next_workflow = self.answers.get("nextworkflow")
-            if next_workflow and hasattr(self.application_instance, next_workflow):
-                self.current_workflow = next_workflow
-                self._load_workflow()
-                return self.get_current_question()
-            else:
-                # No more questions
-                self.completed = True
-                return None
-
         # Skip ignored questions
         while self.current_question_index < len(self.question_list):
             question = self.question_list[self.current_question_index]
 
             # Check if question should be ignored
-            if callable(question.ignore):
-                if question.ignore(self.answers):
-                    self.current_question_index += 1
-                    continue
-            elif question.ignore:
+            ignore_attr = getattr(question, "ignore", False)
+            if callable(ignore_attr):
+                try:
+                    if ignore_attr(self.answers):
+                        # Use default value for ignored questions
+                        default = getattr(question, "default", None)
+                        if default is not None:
+                            self.answers[question.name] = default
+                        self.current_question_index += 1
+                        continue
+                except Exception:
+                    pass
+            elif ignore_attr:
                 # Use default value for ignored questions
-                if hasattr(question, "default") and question.default is not None:
-                    self.answers[question.name] = question.default
+                default = getattr(question, "default", None)
+                if default is not None:
+                    self.answers[question.name] = default
                 self.current_question_index += 1
                 continue
 
@@ -55,8 +51,10 @@ class QuestionSession:
 
         # If we've exhausted the current workflow's questions, check for next workflow
         next_workflow = self.answers.get("nextworkflow")
-        if next_workflow and hasattr(self.application_instance, next_workflow):
+        if next_workflow and hasattr(self.application_instance, next_workflow) and self.current_workflow != next_workflow:
             self.current_workflow = next_workflow
+            # Clear nextworkflow to avoid infinite loops
+            del self.answers["nextworkflow"]
             self._load_workflow()
             return self.get_current_question()
 
@@ -68,6 +66,14 @@ class QuestionSession:
         """Add an answer to the session."""
         self.answers[variable_name] = answer
         self.current_question_index += 1
+        
+        # Reload the workflow to handle conditional questions
+        # This allows the workflow to return different questions based on answers
+        # Store the current index before reload
+        answered_count = self.current_question_index
+        self._load_workflow()
+        # Set index to the number of questions we've already answered
+        self.current_question_index = answered_count
 
     def _load_workflow(self) -> None:
         """Load questions from the current workflow."""
@@ -78,7 +84,7 @@ class QuestionSession:
             self.question_list = []
             return
 
-        # Convert questions to inquirer prompts
+        # Convert questions to inquirer prompts and store original ignore callables
         all_prompts = []
         for question in questions:
             if hasattr(question, "make_prompts"):
@@ -86,6 +92,14 @@ class QuestionSession:
                 all_prompts.extend(prompts)
             else:
                 all_prompts.append(question)
+
+        # Store original ignore functions for later re-evaluation
+        # This is needed because inquirer evaluates ignore immediately
+        for i, prompt in enumerate(all_prompts):
+            # Check if there's a stored ignore callable
+            if not hasattr(prompt, "_original_ignore"):
+                # Store the current ignore value (might be a bool after inquirer processed it)
+                prompt._original_ignore = None
 
         self.question_list = all_prompts
         self.current_question_index = 0

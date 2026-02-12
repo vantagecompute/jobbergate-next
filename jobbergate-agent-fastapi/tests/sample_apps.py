@@ -73,12 +73,14 @@ class ConditionalApplication:
 
         from inquirer import Confirm, Text
 
-        return [
+        questions = [
             Confirm("use_gpu", message="Do you want to use GPU?", default=False),
-            Text(
-                "gpu_count",
-                message="How many GPUs?",
-                default="1",
-                ignore=lambda answers: not answers.get("use_gpu", False),
-            ),
         ]
+        
+        # Only add the GPU count question if use_gpu is True
+        if data.get("use_gpu", False):
+            questions.append(
+                Text("gpu_count", message="How many GPUs?", default="1")
+            )
+        
+        return questions

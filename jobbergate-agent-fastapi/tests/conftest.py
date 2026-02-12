@@ -23,7 +23,7 @@ def clear_sessions():
 @pytest.fixture
 def sample_application_class():
     """Create a sample application class for testing."""
-    from jobbergate_agent_fastapi.tests.sample_apps import SimpleApplication
+    from tests.sample_apps import SimpleApplication
 
     return SimpleApplication
 

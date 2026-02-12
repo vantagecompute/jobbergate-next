@@ -3,7 +3,7 @@
 import pytest
 
 from jobbergate_agent_fastapi.session_manager import SessionManager
-from jobbergate_agent_fastapi.tests.sample_apps import (
+from tests.sample_apps import (
     ConditionalApplication,
     MultiWorkflowApplication,
     SimpleApplication,

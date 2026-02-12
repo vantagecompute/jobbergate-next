@@ -36,13 +36,12 @@ class QuestionHandler:
 
         # Handle Path questions (Directory or File)
         if isinstance(question, inquirer.Path):
-            if hasattr(question, "path_type"):
-                if question.path_type == inquirer.Path.DIRECTORY:
-                    question_type = QuestionType.DIRECTORY
-                elif question.path_type == inquirer.Path.FILE:
-                    question_type = QuestionType.FILE
-                else:
-                    question_type = QuestionType.TEXT
+            # Check the _path_type attribute (private attribute used by inquirer)
+            path_type_value = getattr(question, "_path_type", None)
+            if path_type_value == "directory" or path_type_value == inquirer.Path.DIRECTORY:
+                question_type = QuestionType.DIRECTORY
+            elif path_type_value == "file" or path_type_value == inquirer.Path.FILE:
+                question_type = QuestionType.FILE
             else:
                 question_type = QuestionType.TEXT
 
@@ -68,9 +67,10 @@ class QuestionHandler:
         if choices is not None:
             response_data["choices"] = choices if isinstance(choices, list) else list(choices)
 
-        # Add path validation if present
-        if hasattr(question, "exists"):
-            response_data["path_exists"] = question.exists
+        # Add path validation if present (for Path questions)
+        exists_attr = getattr(question, "_exists", None)
+        if exists_attr is not None:
+            response_data["path_exists"] = exists_attr
 
         return QuestionResponse(**response_data)
 
@@ -90,22 +90,25 @@ class QuestionHandler:
             Tuple of (is_valid, error_message)
         """
         # Check if question should be ignored
-        if callable(question.ignore):
-            if question.ignore(previous_answers):
-                return True, None
-        elif question.ignore:
+        ignore_attr = getattr(question, "ignore", False)
+        if callable(ignore_attr):
+            try:
+                if ignore_attr(previous_answers):
+                    return True, None
+            except Exception:
+                pass
+        elif ignore_attr:
             return True, None
 
-        # Run custom validator if present
-        if hasattr(question, "validate") and callable(question.validate):
+        # Run inquirer's validate method if present
+        validate_method = getattr(question, "validate", None)
+        if validate_method and callable(validate_method):
             try:
-                result = question.validate(previous_answers, answer)
-                if result is True:
-                    return True, None
-                elif isinstance(result, bool):
-                    return False, "Invalid answer"
-                else:
-                    return False, str(result)
+                # Inquirer's validate method takes only the current answer
+                # It returns None on success and raises ValidationError on failure
+                result = validate_method(answer)
+                # If it returns without exception, validation passed
+                return True, None
             except inquirer.errors.ValidationError as e:
                 return False, e.reason
             except Exception as e:

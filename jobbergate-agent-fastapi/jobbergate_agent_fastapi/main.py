@@ -109,23 +109,28 @@ async def start_session(app_id: str, application_path: Optional[str] = None):
     Returns:
         Session information with first question
     """
-    try:
-        # In a real implementation, we would load the application from storage
-        # For now, we'll require an application_path parameter or use a cached version
-        if app_id not in _application_cache:
-            if not application_path:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail=f"Application {app_id} not found. Please provide application_path for testing.",
-                )
+    # In a real implementation, we would load the application from storage
+    # For now, we'll require an application_path parameter or use a cached version
+    if app_id not in _application_cache:
+        if not application_path:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Application {app_id} not found. Please provide application_path for testing.",
+            )
 
+        try:
             app_class = load_application_from_path(application_path)
             # Create instance with minimal config
             app_instance = app_class({"jobbergate_config": {}, "application_config": {}})
             _application_cache[app_id] = app_instance
-        else:
-            app_instance = _application_cache[app_id]
+        except ValueError as e:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
+        except Exception as e:
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error loading application: {e}")
+    else:
+        app_instance = _application_cache[app_id]
 
+    try:
         # Create session
         session = session_manager.create_session(app_id, app_instance)
 
@@ -141,9 +146,6 @@ async def start_session(app_id: str, application_path: Optional[str] = None):
             question=question_response,
             completed=session.completed,
         )
-
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error starting session: {e}")
 
