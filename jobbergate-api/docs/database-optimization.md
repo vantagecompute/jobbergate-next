@@ -1,6 +1,6 @@
 # Database Optimization Documentation
 
-This document describes the database optimizations implemented in the migration `20260212_020944--add_database_indexes_for_performance.py`.
+This document describes the database optimizations implemented in the migration `20260212_020944--b16b218ef5d6_add_database_indexes_for_performance.py`.
 
 ## Overview
 
@@ -179,7 +179,7 @@ CREATE INDEX CONCURRENTLY idx_name ON table_name (column);
 
 ## Related Files
 
-- **Migration**: `alembic/versions/20260212_020944--add_database_indexes_for_performance.py`
+- **Migration**: `alembic/versions/20260212_020944--b16b218ef5d6_add_database_indexes_for_performance.py`
 - **Models**:
   - `jobbergate_api/apps/job_submissions/models.py`
   - `jobbergate_api/apps/job_scripts/models.py`
