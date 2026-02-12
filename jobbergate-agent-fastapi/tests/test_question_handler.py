@@ -1,6 +1,5 @@
 """Tests for question handler."""
 
-import pytest
 from inquirer import Checkbox, Confirm, List, Path, Text
 
 from jobbergate_agent_fastapi.models import QuestionType

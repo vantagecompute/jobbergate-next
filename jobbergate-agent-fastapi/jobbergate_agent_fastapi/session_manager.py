@@ -4,7 +4,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-import inquirer
+import inquirer  # type: ignore[import-untyped]
 
 
 @dataclass
@@ -51,7 +51,11 @@ class QuestionSession:
 
         # If we've exhausted the current workflow's questions, check for next workflow
         next_workflow = self.answers.get("nextworkflow")
-        if next_workflow and hasattr(self.application_instance, next_workflow) and self.current_workflow != next_workflow:
+        if (
+            next_workflow
+            and hasattr(self.application_instance, next_workflow)
+            and self.current_workflow != next_workflow
+        ):
             self.current_workflow = next_workflow
             # Clear nextworkflow to avoid infinite loops
             del self.answers["nextworkflow"]
@@ -66,7 +70,7 @@ class QuestionSession:
         """Add an answer to the session."""
         self.answers[variable_name] = answer
         self.current_question_index += 1
-        
+
         # Reload the workflow to handle conditional questions
         # This allows the workflow to return different questions based on answers
         # Store the current index before reload

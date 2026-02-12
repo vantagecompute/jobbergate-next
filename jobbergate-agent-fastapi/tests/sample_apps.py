@@ -76,11 +76,9 @@ class ConditionalApplication:
         questions = [
             Confirm("use_gpu", message="Do you want to use GPU?", default=False),
         ]
-        
+
         # Only add the GPU count question if use_gpu is True
         if data.get("use_gpu", False):
-            questions.append(
-                Text("gpu_count", message="How many GPUs?", default="1")
-            )
-        
+            questions.append(Text("gpu_count", message="How many GPUs?", default="1"))
+
         return questions

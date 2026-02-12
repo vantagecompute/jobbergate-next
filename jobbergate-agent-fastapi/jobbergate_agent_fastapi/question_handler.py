@@ -1,9 +1,8 @@
 """Question handling and serialization for the API."""
 
-import uuid
 from typing import Any, Dict, List, Optional
 
-import inquirer
+import inquirer  # type: ignore[import-untyped]
 
 from jobbergate_agent_fastapi.models import QuestionResponse, QuestionType
 
@@ -72,7 +71,7 @@ class QuestionHandler:
         if exists_attr is not None:
             response_data["path_exists"] = exists_attr
 
-        return QuestionResponse(**response_data)
+        return QuestionResponse(**response_data)  # type: ignore[arg-type]
 
     @staticmethod
     def validate_answer(
@@ -106,7 +105,7 @@ class QuestionHandler:
             try:
                 # Inquirer's validate method takes only the current answer
                 # It returns None on success and raises ValidationError on failure
-                result = validate_method(answer)
+                validate_method(answer)
                 # If it returns without exception, validation passed
                 return True, None
             except inquirer.errors.ValidationError as e:

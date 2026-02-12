@@ -126,7 +126,9 @@ async def start_session(app_id: str, application_path: Optional[str] = None):
         except ValueError as e:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
         except Exception as e:
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error loading application: {e}")
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error loading application: {e}"
+            )
     else:
         app_instance = _application_cache[app_id]
 
@@ -211,9 +213,7 @@ async def submit_answer(app_id: str, session_id: str, answer_request: AnswerRequ
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No question to answer")
 
     # Validate answer
-    is_valid, error_message = QuestionHandler.validate_answer(
-        current_question, answer_request.answer, session.answers
-    )
+    is_valid, error_message = QuestionHandler.validate_answer(current_question, answer_request.answer, session.answers)
     if not is_valid:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=error_message or "Invalid answer")
 
