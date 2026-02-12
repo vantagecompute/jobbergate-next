@@ -15,7 +15,7 @@ from alembic import op
 
 
 # revision identifiers, used by Alembic.
-revision = "add_db_indexes"
+revision = "b16b218ef5d6"
 down_revision = "944e578d7b34"
 branch_labels = None
 depends_on = None
