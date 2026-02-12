@@ -1,0 +1,5 @@
+application_config: {}
+jobbergate_config:
+  application_name: "Dynamic Choices Example"
+  application_description: "Demonstrates dynamic question choices based on filesystem and runtime execution"
+  application_version: "1.0.0"
