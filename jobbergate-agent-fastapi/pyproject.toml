@@ -1,0 +1,82 @@
+[tool.poetry]
+name = "jobbergate-agent-fastapi"
+version = "5.9.0"
+description = "Jobbergate Agent FastAPI - Remote question/answer service for jobbergate applications"
+authors = ["Omnivector Solutions <info@omnivector.solutions>"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/omnivector-solutions/jobbergate"
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Development Status :: 5 - Production/Stable",
+    "Framework :: FastAPI",
+    "Topic :: Scientific/Engineering",
+]
+packages = [{ include = "jobbergate_agent_fastapi" }]
+
+[tool.poetry.urls]
+"Bug Tracker" = "https://github.com/omnivector-solutions/jobbergate/issues"
+"Changelog" = "https://github.com/omnivector-solutions/jobbergate/blob/main/jobbergate-agent-fastapi/CHANGELOG.rst"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+jobbergate-core = { path = "../jobbergate-core", develop = true }
+armasec = "^3.0.2"
+fastapi = "^0.124.4"
+uvicorn = "^0.38.0"
+inquirer = "^3.4.1"
+python-dotenv = "^1.2.1"
+pydantic = "^2.12.5"
+pydantic-settings = "^2.12.0"
+sentry-sdk = "^2.47.0"
+py-buzz = "^7.3.0"
+loguru = "^0.7.3"
+
+[tool.stickywheel]
+# This will resolve the relative path to the jobbergate-core package at build time
+# and pin its version based on the version in the jobbergate-agent-fastapi pyproject.toml file.
+# Since it is at build time, there is no need to install the pluging on dev machines,
+# the deployment workflow will take care of it.
+# Reference: https://github.com/python-poetry/poetry/issues/6850#issuecomment-1445477319
+strategy = "exact"
+
+[tool.poetry.scripts]
+jobbergate-agent-fastapi = "jobbergate_agent_fastapi.main:run"
+
+[tool.poetry.group.dev.dependencies]
+mypy = "^1.19.1"
+pytest = "^7.4.4"
+pytest-asyncio = "^0.21.2"
+pytest-cov = "^4.1.0"
+pytest-env = "^0.6.2"
+pytest-mock = "^3.15.1"
+pytest-random-order = "^1.2.0"
+httpx = "^0.28.1"
+respx = "^0.22.0"
+ruff = "^0.14.9"
+
+[tool.ruff]
+line-length = 120
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+asyncio_mode = "auto"
+addopts = [
+    "--random-order",
+    "--cov=jobbergate_agent_fastapi",
+    "--cov-report=term",
+    "--cov-report=xml:tests/coverage.xml",
+    "--cov-branch",
+    "--cov-fail-under=70",
+]
+
+[tool.pytest_env]
+DEPLOY_ENV = "TEST"
+ARMASEC_DOMAIN = "armasec.dev"  # Must align with the rs256_domain fixture in armasec's pytest extension
+ARMASEC_DEBUG = false  # Set this to True to debug armasec issues by seeing verbose logging
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
